@@ -19,7 +19,7 @@
 #include"user.h"
 
 using namespace std;
-
+int MEMORY_INITIALIZED = 0;
 
 void spb_init(mySuperBlock &sb)
 {
@@ -75,7 +75,7 @@ void init_datablock(char *data)
 				tmp_table.free[j] = 100 * i + j + myFileSystem::DATA_ZONE_START_SECTOR - 1;
 			}
 		}
-		memcpy(&data[99 * 512 + i * 100 * 512], (void*)&tmp_table, sizeof(tmp_table));
+		memcpy(&data[i * 100 * 512], (void*)&tmp_table, sizeof(tmp_table));
 		if (last_datablk_num == 0)
 			break;
 	}
@@ -350,7 +350,10 @@ int main()
 	int len = st.st_size;
 	/*把文件映射成虚拟内存地址*/
 	void * addr=mmap(NULL, len, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
-	
+	if ((void *) -1 == addr) {
+        printf("Could not map memory: %s\n", strerror(errno));
+		exit(-1);
+    }
 	myKernel::Instance().Initialize((char*)addr);
 
 	sys_init();
@@ -369,14 +372,10 @@ int main()
 	exit(1);
 	*/
 
-
-	cout << "                    类UNIX V6++二级文件系统实验                     " << endl;
-	cout << "                             *******                                " << endl;
-	cout << "                         Welcome to Linux World                     " << endl;
-	cout << "           CopyRight @ Xuesen Huang Tongji University  2018         " << endl;
-	cout << ">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>" << endl;
+	char nowDir[100] = "/";
 	while (1)
 	{
+		cout << "mr.nobody@hisFilesystem:" << nowDir << "# ";
 		char WhichToDo=-1;
 		cout << "===============================================================" << endl;
 		cout << "||请输入需要执行的API的对应编号，如下所示：                  ||" << endl;
