@@ -1,0 +1,7 @@
+{
+    "files.encoding": "gbk",
+    "files.associations": {
+        "iostream": "cpp",
+        "ostream": "cpp"
+    }
+}

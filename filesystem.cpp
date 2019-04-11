@@ -1169,24 +1169,24 @@ void myFileManager::ChDir()
 {
 	myInode* pInode;
 	myUser& u = myKernel::Instance().GetUser();
-
+	char * dirname = u.u_dirp;
 	pInode = this->NameI(myFileManager::NextChar, myFileManager::OPEN);
 	if (NULL == pInode)
 	{
-		cout << "啥都没找到" << endl;
+		cout << "cd: " << dirname << ": No such file or directory" << endl;
 		return;
 	}
 	/* 搜索到的文件不是目录文件 */
 	if ((pInode->i_mode & myInode::IFMT) != myInode::IFDIR)
 	{
-		cout << "搜索到的不是目录文件,chdir错误返回" << endl;
+		cout << "cd: " << dirname << ": Not a directory" << endl;
 		u.u_error = myUser::my_ENOTDIR;
 		this->m_InodeTable->IPut(pInode);
 		return;
 	}
 	if (this->Access(pInode, myInode::IEXEC))
 	{
-		cout << "无权限返回" << endl;
+		cout << "cd: "<< dirname << ": Permission denied" << endl;
 		this->m_InodeTable->IPut(pInode);
 		return;
 	}
@@ -1260,7 +1260,7 @@ void myFileManager::MkNod()
 		/* 要创建的文件已经存在,这里并不能去覆盖此文件 */
 		if (pInode != NULL)
 		{
-			cout << "创建的文件已存在" << endl;
+			cout << "error: File exists." << endl;
 			u.u_error = myUser::my_EEXIST;
 			this->m_InodeTable->IPut(pInode);
 			return;

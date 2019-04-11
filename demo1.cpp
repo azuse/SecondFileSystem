@@ -21,6 +21,57 @@
 using namespace std;
 int MEMORY_INITIALIZED = 0;
 
+void permissions(unsigned short mode)
+{  //Directory or not: 
+   if((mode&0x4000)==0)
+      printf("-");
+   else
+      printf("d");
+
+   // permissions of file owner
+   if((mode&0x0100)==0)
+      printf("-");
+   else
+      printf("r");
+
+   if((mode&0x0080)==0)
+      printf("-");
+   else
+      printf("w");
+   if((mode&0x0040)==0)
+      printf("-");
+   else
+      printf("x");
+
+   //permissions of users in the same group
+   if((mode&0x0020)==0)
+      printf("-");
+   else
+      printf("r");
+   if((mode&0x0010)==0)
+      printf("-");
+   else
+      printf("w");
+   if((mode&0x0008)==0)
+      printf("-");
+   else
+      printf("x");
+
+   //permissions of other users
+   if((mode&0x0004)==0)
+      printf("-");
+   else
+      printf("r");
+   if((mode&0x0002)==0)
+      printf("-");
+   else
+      printf("w");
+   if((mode&0x0001)==0)
+      printf("-");
+   else
+      printf("x");
+}
+
 void spb_init(mySuperBlock &sb)
 {
 	sb.s_isize = myFileSystem::INODE_ZONE_SIZE;
@@ -248,7 +299,46 @@ void ls()
 			myDirectoryEntry *mm = (myDirectoryEntry*)temp_filename;
 			if (mm->m_ino == 0)
 				continue;
-			cout << "======" << mm->m_name << "======" << endl;
+			myInode * pInode = g_InodeTable.IGet(mm->m_ino);
+			if(pInode->i_mode & pInode->IFDIR)
+				cout << "\033[1;34m" << mm->m_name << "\033[0m" << endl;
+			else
+				cout << mm->m_name << endl;
+			memset(temp_filename, 0, 32);
+		}
+	}
+	fclose(fd);
+}
+
+
+
+void ll()
+{
+	myUser &u = myKernel::Instance().GetUser();
+	u.u_error = myUser::my_NOERROR;
+	int fd = fopen(u.u_curdir, (myFile::FREAD) );
+	char temp_filename[32] = { 0 };
+	for (;;)
+	{
+		if (fread(fd, temp_filename, 32) == 0) {
+			return;
+		}
+		else
+		{
+			myDirectoryEntry *mm = (myDirectoryEntry*)temp_filename;
+			if (mm->m_ino == 0)
+				continue;
+			myInode * pInode = g_InodeTable.IGet(mm->m_ino);
+			permissions(pInode->i_mode);
+			printf("\t");
+			printf("%d\t",pInode->i_nlink);
+			printf("root\t");
+			printf("root\t");
+			printf("%d\t",pInode->i_size);
+			if(pInode->i_mode & pInode->IFDIR)
+				printf("\033[1;34m%s\033[0m\n",mm->m_name);
+			else
+				printf("%s\n",mm->m_name);
 			memset(temp_filename, 0, 32);
 		}
 	}
@@ -258,7 +348,6 @@ void ls()
 
 void mkdir(char *dirname)
 {
-//	cout << "mkdir" << endl;
 	int defaultmode = 040755;
 	myUser &u = myKernel::Instance().GetUser();
 	u.u_error = myUser::my_NOERROR;
@@ -272,16 +361,12 @@ void mkdir(char *dirname)
 
 void cd(char *dirname)
 {
-//	cout << "cd" << endl;
 	myUser &u = myKernel::Instance().GetUser();
 	u.u_error = myUser::my_NOERROR;
-	char ppp[10] = { 0 };
-	strcpy(ppp, "testdir");
-	u.u_dirp = ppp;
-	u.u_arg[0] = int(ppp);
+	u.u_dirp = dirname;
+	u.u_arg[0] = int(dirname);
 	myFileManager &fimanag = myKernel::Instance().GetFileManager();
 	fimanag.ChDir();
-
 }
 
 void backDir(){
@@ -306,6 +391,12 @@ void backDir(){
 		int i = 0;
 		for (char *pc = u.u_curdir; pc != last; pc++)
 		{
+///////////////////////////////////////////
+///////////////////////////////////////////
+///////////////////////////////////////////
+///////////////////////////////////////////
+//返回上级目录写的是个什么东西?
+
 			temp_curdir[i++] = u.u_curdir[i++];
 		}
 	}
@@ -359,41 +450,39 @@ int main()
 	sys_init();
 
 
-/* fcreate("test0", 1);
-	ls();
-	mkdir("testdir");
-	cout << endl << endl << endl;
-	ls();
-	cd("testdir");
-	int fc=fcreate("test1", 1);
-	ls();
-	backDir();
-	ls();
-	exit(1);
-	*/
-
 	char nowDir[100] = "/";
+	cout << "+++++++++++++++++++++++++++++" << endl;
+	cout << "| welcome to my file system |" << endl;
+	cout << "| use 'help' to display     |" << endl;
+	cout << "| help message.             |" << endl;
+	cout << "+++++++++++++++++++++++++++++" << endl;
 	while (1)
 	{
-		cout << "mr.nobody@hisFilesystem:" << nowDir << "# ";
+
+		cout << "root@Filesystem:" << nowDir << "# ";
+		char buff[50] = "";
+		char tmp[50] = "";
 		char WhichToDo=-1;
-		cout << "===============================================================" << endl;
-		cout << "||请输入需要执行的API的对应编号，如下所示：                  ||" << endl;
-		cout << "||a   fopen(char *name, int mode)                            ||" << endl;
-		cout << "||b   fclose(int fd)                                         ||" << endl;
-		cout << "||c   fread(int fd, int length)                              ||" << endl;
-		cout << "||d   fwrite(int fd, char *buffer, int length)               ||" << endl;
-		cout << "||e   flseek(int fd, int position, int ptrname)              ||" << endl;
-		cout << "||f   fcreat(char *name, int mode)                           ||" << endl;
-		cout << "||g   fdelete(char *name)                                    ||" << endl;
-		cout << "||h   ls()                                                   ||" << endl;
-		cout << "||i   mkdir(char* dirname)                                   ||" << endl;
-		cout << "||j   cd(char* dirname)                                      ||" << endl;
-		cout << "||k   backDir()--返回上级目录                                ||" << endl;
-		cout << "||q  退出文件系统                                            ||" << endl << endl << endl;
-		//cout << "===============================================================" << endl;
-		cout << "||SecondFileSystem@ 请输入编号>>";
-		cin >> WhichToDo;
+		// cout << "===============================================================" << endl;
+		// cout << "||请输入需要执行的API的对应编号，如下所示：                  ||" << endl;
+		// cout << "||a   fopen(char *name, int mode)                            ||" << endl;
+		// cout << "||b   fclose(int fd)                                         ||" << endl;
+		// cout << "||c   fread(int fd, int length)                              ||" << endl;
+		// cout << "||d   fwrite(int fd, char *buffer, int length)               ||" << endl;
+		// cout << "||e   flseek(int fd, int position, int ptrname)              ||" << endl;
+		// cout << "||f   fcreat(char *name, int mode)                           ||" << endl;
+		// cout << "||g   fdelete(char *name)                                    ||" << endl;
+		// cout << "||h   ls()                                                   ||" << endl;
+		// cout << "||i   mkdir(char* dirname)                                   ||" << endl;
+		// cout << "||j   cd(char* dirname)                                      ||" << endl;
+		// cout << "||k   backDir()--返回上级目录                                ||" << endl;
+		// cout << "||q  退出文件系统                                            ||" << endl << endl << endl;
+		// cout << "===============================================================" << endl;
+		// cout << "||SecondFileSystem@ 请输入编号>>";
+		// cin >> WhichToDo;
+
+		cin >> buff;
+
 		string filename;
 		string inBuf;
 		string dirname;
@@ -410,115 +499,166 @@ int main()
 		int writeNum = 0;
 		char c;
 		char *temp_inBuf, *temp_des, *temp_filename,*temp_dirname;
-		switch (WhichToDo)
+
+		if(strcmp(buff,"help") == 0 or strcmp(buff,"h") == 0)
 		{
-		case 'a'://fopen
-			cout << "||SecondFileSystem@ 请输入第一个参数文件名>>";
-			cin >> filename;
-			temp_filename = new char[filename.length()+1];
-			strcpy(temp_filename, filename.c_str());
-			cout << "||SecondFileSystem@ 请输入第二个参数，打开方式>>";
-			cin >> mode;
-			openfd = fopen(temp_filename, mode);
-			if (openfd < 0)
-				cout << "||SecondFileSystem@ open失败" << endl;
-			else
-				cout << "||SecondFileSystem@ open 返回fd=" << openfd << endl;
-			delete temp_filename;
-			break;
-		case 'b'://fclose
-			cout << "||SecondFileSystem@ 请输入第一个参数文件句柄>>";
-			cin >> temp_fd;
-			fclose(temp_fd);
-			break;
-		case 'c'://fread
-			cout << "||SecondFileSystem@ 请输入第一个参数，文件句柄>>";
-			cin >> temp_fd;
-			cout << "||SecondFileSystem@ 请输入第二个参数，读出的数据长度:";
-			cin >>outLen;
-			temp_des = new char[1+outLen];
-			memset(temp_des, 0, outLen + 1);
-			readNum = fread(temp_fd, temp_des, outLen);
-			cout << "||SecondFileSystem@ read返回" << readNum << endl;
-			cout << "||SecondFileSystem@ 读出数据为:" << endl;
-			cout << temp_des << endl;
-			break;
-		case 'd'://fwrite
-			cout << "||SecondFileSystem@ 请输入第一个参数文件句柄>>";
-			cin >> temp_fd;
-			cout << "||SecondFileSystem@ 请输入第二个参数，写入数据>>";
-			cin >> inBuf;
-			temp_inBuf = new char[inBuf.length() + 1];
-			strcpy(temp_inBuf, inBuf.c_str());
-			cout << "||SecondFileSystem@ 请输入第三个参数，写入数据的长度>>";
-			cin >>inLen;
-			writeNum = fwrite(temp_fd, temp_inBuf, inLen);
-			cout << "||SecondFileSystem@ 写返回为" << writeNum << endl;
-			break;
-		case 'e'://flseek
-			cout << "||SecondFileSystem@ 请输入第一个参数文件句柄>>";
-			cin >> temp_fd;
-			cout << "||SecondFileSystem@ 请输入第二个参数，移动位置>>";
-			cin >> temp_position;
-			cout << "||SecondFileSystem@ 请输入第三个参数，移动方式>>";
-			cin >> temp_ptrname;
-			outSeek = flseek(temp_fd, temp_position, temp_ptrname);
-			cout << "||SecondFileSystem@ fseek函数返回" << outSeek << endl;
-			break;
-		case 'f'://fcreat
-			cout << "||SecondFileSystem@ 请输入第一个参数文件名>>";
-			cin >> filename;
-			temp_filename = new char[filename.length() + 1];
-			strcpy(temp_filename, filename.c_str());
-			cout << "||SecondFileSystem@ 请输入第二个参数，创建方式>>";
-			cin >> mode;
-			creatfd = fcreate(temp_filename, mode);
-			if (creatfd < 0)
-				cout << "||SecondFileSystem@ create失败" << endl;
-			else
-				cout << "create成功 返回fd=" << creatfd << endl;
-			delete temp_filename;
-			break;
-		case 'g'://fdelete
-			cout << "||SecondFileSystem@ 请输入第一个参数文件名>>";
-			cin >> filename;
-			temp_filename = new char[filename.length() + 1];
-			strcpy(temp_filename, filename.c_str());
-			fdelete(temp_filename);
-			delete temp_filename;
-			break;
-		case 'h':
-			cout << "||SecondFileSystem@ 输出如下>>" << endl;
-			ls();
-			break;
-		case 'i'://mkdir
-			cout << "||SecondFileSystem@ 请输入第一个创建目录名>>";
-			cin >> dirname;
-			temp_dirname = new char[dirname.length() + 1];
-			strcpy(temp_dirname, dirname.c_str());
-			mkdir(temp_dirname);
-			delete temp_dirname;
-			break;
-		case 'j'://cd
-			cout << "||SecondFileSystem@ 请输入第一个进入目录名>>";
-			cin >> dirname;
-			temp_dirname = new char[dirname.length() + 1];
-			strcpy(temp_dirname, dirname.c_str());
-			cd(temp_dirname);
-			delete temp_dirname;
-			break;
-		case 'k':
-			backDir();
-			break;
-		case 'q':
-			quitOS((char*)addr,len);
-			return 1;
-			break;
-		default:
-			cout << "||SecondFileSystem@ 输入不合法，请重新输入" << endl;
-			while ((c = getchar()) != EOF && c != '\n');
-			break;
+			cout << "My file system beta" << endl << "(use 'help' or 'h' to display this message)" << endl;
+			cout << "usage: [commands] [argments]" << endl;
+			cout << "Commands: "<< endl;
+			cout << "\t ls                    List all files and directories in current directory." << endl;
+			cout << "\t ll                    List files with information in current directory." << endl;
+			cout << "\t cd [dir]              Change working directory." << endl;
+			cout << "\t pwd                   Print the name of the current working directory." << endl;
+			cout << "\t mkdir [dirname]       Create a new directory in current directory." << endl;
+			cout << "\t exit                  Save changes and exit this file system." << endl;
 		}
+		else if(strcmp(buff,"ls") == 0)
+		{
+			ls();
+		}
+		else if(strcmp(buff,"ll") == 0)
+		{
+			ll();
+		}
+		else if(strncmp(buff, "mkdir" , 5) == 0)
+		{
+			char newdirname[50] = "";
+			cin >> newdirname;
+			mkdir(newdirname);
+		}
+		else if(strncmp(buff, "cd", 2) == 0)
+		{
+			char path[50] = "";
+			cin >> path;
+			if(strcmp(path,".") == 0)
+				continue;
+			else if(strcmp(path,"..") == 0)
+				backDir();
+			else
+				cd(path);
+			myUser &u = myKernel::Instance().GetUser();
+			strcpy(nowDir, u.u_curdir);
+		}
+		else if(strcmp(buff, "pwd") == 0)
+		{
+			myUser &u = myKernel::Instance().GetUser();
+			cout <<  u.u_curdir << endl;
+		}
+		else if(strcmp(buff,"exit") == 0)
+		{
+			cout << "goodbye!" << endl;
+			quitOS((char*)addr,len);
+			return 0;
+		}
+		// switch (WhichToDo)
+		// {
+		// case 'a'://fopen
+		// 	cout << "||SecondFileSystem@ 请输入第一个参数文件名>>";
+		// 	cin >> filename;
+		// 	temp_filename = new char[filename.length()+1];
+		// 	strcpy(temp_filename, filename.c_str());
+		// 	cout << "||SecondFileSystem@ 请输入第二个参数，打开方式>>";
+		// 	cin >> mode;
+		// 	openfd = fopen(temp_filename, mode);
+		// 	if (openfd < 0)
+		// 		cout << "||SecondFileSystem@ open失败" << endl;
+		// 	else
+		// 		cout << "||SecondFileSystem@ open 返回fd=" << openfd << endl;
+		// 	delete temp_filename;
+		// 	break;
+		// case 'b'://fclose
+		// 	cout << "||SecondFileSystem@ 请输入第一个参数文件句柄>>";
+		// 	cin >> temp_fd;
+		// 	fclose(temp_fd);
+		// 	break;
+		// case 'c'://fread
+		// 	cout << "||SecondFileSystem@ 请输入第一个参数，文件句柄>>";
+		// 	cin >> temp_fd;
+		// 	cout << "||SecondFileSystem@ 请输入第二个参数，读出的数据长度:";
+		// 	cin >>outLen;
+		// 	temp_des = new char[1+outLen];
+		// 	memset(temp_des, 0, outLen + 1);
+		// 	readNum = fread(temp_fd, temp_des, outLen);
+		// 	cout << "||SecondFileSystem@ read返回" << readNum << endl;
+		// 	cout << "||SecondFileSystem@ 读出数据为:" << endl;
+		// 	cout << temp_des << endl;
+		// 	break;
+		// case 'd'://fwrite
+		// 	cout << "||SecondFileSystem@ 请输入第一个参数文件句柄>>";
+		// 	cin >> temp_fd;
+		// 	cout << "||SecondFileSystem@ 请输入第二个参数，写入数据>>";
+		// 	cin >> inBuf;
+		// 	temp_inBuf = new char[inBuf.length() + 1];
+		// 	strcpy(temp_inBuf, inBuf.c_str());
+		// 	cout << "||SecondFileSystem@ 请输入第三个参数，写入数据的长度>>";
+		// 	cin >>inLen;
+		// 	writeNum = fwrite(temp_fd, temp_inBuf, inLen);
+		// 	cout << "||SecondFileSystem@ 写返回为" << writeNum << endl;
+		// 	break;
+		// case 'e'://flseek
+		// 	cout << "||SecondFileSystem@ 请输入第一个参数文件句柄>>";
+		// 	cin >> temp_fd;
+		// 	cout << "||SecondFileSystem@ 请输入第二个参数，移动位置>>";
+		// 	cin >> temp_position;
+		// 	cout << "||SecondFileSystem@ 请输入第三个参数，移动方式>>";
+		// 	cin >> temp_ptrname;
+		// 	outSeek = flseek(temp_fd, temp_position, temp_ptrname);
+		// 	cout << "||SecondFileSystem@ fseek函数返回" << outSeek << endl;
+		// 	break;
+		// case 'f'://fcreat
+		// 	cout << "||SecondFileSystem@ 请输入第一个参数文件名>>";
+		// 	cin >> filename;
+		// 	temp_filename = new char[filename.length() + 1];
+		// 	strcpy(temp_filename, filename.c_str());
+		// 	cout << "||SecondFileSystem@ 请输入第二个参数，创建方式>>";
+		// 	cin >> mode;
+		// 	creatfd = fcreate(temp_filename, mode);
+		// 	if (creatfd < 0)
+		// 		cout << "||SecondFileSystem@ create失败" << endl;
+		// 	else
+		// 		cout << "create成功 返回fd=" << creatfd << endl;
+		// 	delete temp_filename;
+		// 	break;
+		// case 'g'://fdelete
+		// 	cout << "||SecondFileSystem@ 请输入第一个参数文件名>>";
+		// 	cin >> filename;
+		// 	temp_filename = new char[filename.length() + 1];
+		// 	strcpy(temp_filename, filename.c_str());
+		// 	fdelete(temp_filename);
+		// 	delete temp_filename;
+		// 	break;
+		// case 'h':
+		// 	cout << "||SecondFileSystem@ 输出如下>>" << endl;
+		// 	ls();
+		// 	break;
+		// case 'i'://mkdir
+		// 	cout << "||SecondFileSystem@ 请输入第一个创建目录名>>";
+		// 	cin >> dirname;
+		// 	temp_dirname = new char[dirname.length() + 1];
+		// 	strcpy(temp_dirname, dirname.c_str());
+		// 	mkdir(temp_dirname);
+		// 	delete temp_dirname;
+		// 	break;
+		// case 'j'://cd
+		// 	cout << "||SecondFileSystem@ 请输入第一个进入目录名>>";
+		// 	cin >> dirname;
+		// 	temp_dirname = new char[dirname.length() + 1];
+		// 	strcpy(temp_dirname, dirname.c_str());
+		// 	cd(temp_dirname);
+		// 	delete temp_dirname;
+		// 	break;
+		// case 'k':
+		// 	backDir();
+		// 	break;
+		// case 'q':
+		// 	quitOS((char*)addr,len);
+		// 	return 1;
+		// 	break;
+		// default:
+		// 	cout << "||SecondFileSystem@ 输入不合法，请重新输入" << endl;
+		// 	while ((c = getchar()) != EOF && c != '\n');
+		// 	break;
+		// }
 	}
 
 
