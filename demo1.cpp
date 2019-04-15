@@ -370,37 +370,26 @@ void cd(char *dirname)
 }
 
 void backDir(){
-
-	cout << "backDir" <<"  "<< endl;
 	char temp_curdir[128] = { 0 };
 	myUser &u = myKernel::Instance().GetUser();
-//	cout << u.u_curdir << endl;
 	u.u_error = myUser::my_NOERROR;
 	char *last=strrchr(u.u_curdir, '/');
 	if (last == u.u_curdir&&u.u_curdir[1]==0)
 	{
-		cout << "此为根目录,无效返回" << endl;
 		return;
 	}
 	else if (last == u.u_curdir)
 	{
-		cout << "将返回根目录" << endl;
 		temp_curdir[0] = '/';
 	}
 	else {
 		int i = 0;
 		for (char *pc = u.u_curdir; pc != last; pc++)
 		{
-///////////////////////////////////////////
-///////////////////////////////////////////
-///////////////////////////////////////////
-///////////////////////////////////////////
-//返回上级目录写的是个什么东西?
-
-			temp_curdir[i++] = u.u_curdir[i++];
+			temp_curdir[i] = u.u_curdir[i];
+			i++;
 		}
 	}
-	cout << temp_curdir << endl;
 	u.u_dirp = temp_curdir;
 	u.u_arg[0] = int(temp_curdir);
 	myFileManager &fimanag = myKernel::Instance().GetFileManager();
